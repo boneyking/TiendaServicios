@@ -4,6 +4,7 @@ services:
   tiendaservicios.api.autor:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - SendGrid__ApiKey=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
     ports:
       - "6104:80"
 
