@@ -1,23 +1,21 @@
-using FluentValidation.AspNetCore;
-using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Ocelot.DependencyInjection;
+using Ocelot.Middleware;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
-using TiendaServicios.Api.Libro.Persistencia;
-using TiendaServicios.RabbitMQ.Bus.BusRabbit;
-using TiendaServicios.RabbitMQ.Bus.Implement;
+using TiendaServicios.Api.Gateway.ImplementRemote;
+using TiendaServicios.Api.Gateway.InterfaceRemote;
+using TiendaServicios.Api.Gateway.MessageHandler;
 
-namespace TiendaServicios.Api.Libro
+namespace TiendaServicios.Api.Gateway
 {
     public class Startup
     {
@@ -31,30 +29,17 @@ namespace TiendaServicios.Api.Libro
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddSingleton<IRabbitEventBus, RabbitEventBus>(sp =>
+            //services.AddControllers();
+            services.AddOcelot().AddDelegatingHandler<LibroHandler>();
+            services.AddHttpClient("AutorService", config =>
             {
-                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-                return new RabbitEventBus(sp.GetService<IMediator>(), scopeFactory);
+                config.BaseAddress = new Uri(Configuration["Services:Autor"]);
             });
-
-
-            services.AddControllers().AddFluentValidation(config =>
-            {
-                config.RegisterValidatorsFromAssemblyContaining<Startup>();
-            });
-
-            services.AddDbContext<ContextoLibreria>(option =>
-            {
-                option.UseSqlServer(Configuration.GetConnectionString("ConexionDB"));
-            });
-
-            services.AddMediatR(Assembly.GetExecutingAssembly());
-
-            services.AddAutoMapper(typeof(Startup));
+            services.AddSingleton<IAutorRemote, AutorRemote>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public async void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -69,6 +54,8 @@ namespace TiendaServicios.Api.Libro
             {
                 endpoints.MapControllers();
             });
+
+            await app.UseOcelot();
         }
     }
 }
